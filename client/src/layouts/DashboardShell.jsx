@@ -14,9 +14,9 @@ const NAV_ITEMS = {
   ],
   judge: [
     { id: 'overview', label: 'Overview', icon: '🏠' },
-    { id: 'teams', label: 'Submissions', icon: '📦' },
-    { id: 'presentations', label: 'Presentations', icon: '📊' },
-    { id: 'scoring', label: 'Scores', icon: '⚖️' },
+    { id: 'round_1', label: 'Round 1', icon: '📊' },
+    { id: 'round_2', label: 'Round 2', icon: '🔗' },
+    { id: 'round_3', label: 'Round 3', icon: '⚖️' },
   ],
   organizer: [
     { id: 'judges', label: 'Judges', icon: '⚖️' },
@@ -24,6 +24,7 @@ const NAV_ITEMS = {
     { id: 'overview', label: 'Overview', icon: '🏠' },
     { id: 'teams', label: 'All Teams', icon: '👥' },
     { id: 'entries', label: 'Round 2', icon: '📦' },
+    { id: 'final_scores', label: 'Final Scores', icon: '🏆' },
     { id: 'announcements', label: 'Announcements', icon: '📢' },
     { id: 'schedule', label: 'Schedule', icon: '📅' },
   ],

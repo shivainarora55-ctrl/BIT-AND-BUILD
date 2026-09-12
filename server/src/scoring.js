@@ -1,15 +1,17 @@
 import { z } from 'zod';
 
 export const RUBRIC = [
-  { key: 'completeness', weight: 20 },
-  { key: 'technical_execution', weight: 20 },
-  { key: 'innovation_creativity', weight: 15 },
-  { key: 'applicability_scalability', weight: 15 },
-  { key: 'ui_ux', weight: 10 },
-  { key: 'bonus_features', weight: 10 },
-  { key: 'presentation', weight: 5 },
-  { key: 'work_distribution', weight: 5 },
+  { key: 'completeness', name: 'Completeness', maximum: 20 },
+  { key: 'technical_execution', name: 'Technical Execution', maximum: 20 },
+  { key: 'innovation_creativity', name: 'Innovation & Creativity', maximum: 15 },
+  { key: 'applicability_scalability', name: 'Applicability & Scalability', maximum: 15 },
+  { key: 'ui_ux', name: 'UI/UX', maximum: 10 },
+  { key: 'bonus_features', name: 'Bonus Features', maximum: 10 },
+  { key: 'presentation', name: 'Presentation', maximum: 5 },
+  { key: 'work_distribution', name: 'Work Distribution', maximum: 5 },
 ];
+
+export const EVALUATION_ROUNDS = ['round_1', 'round_2', 'round_3'];
 
 export const scoreRequestSchema = z.object({
   team_id: z.string().uuid(),
@@ -26,7 +28,7 @@ export const scoreRequestSchema = z.object({
 
 export function calculateScore(rawScores) {
   const weightedScores = Object.fromEntries(
-    RUBRIC.map(({ key, weight }) => [key, (rawScores[key] / 10) * weight]),
+    RUBRIC.map(({ key, maximum }) => [key, (rawScores[key] / 10) * maximum]),
   );
   const finalScore = RUBRIC.reduce((total, { key }) => total + weightedScores[key], 0);
 
@@ -64,6 +66,8 @@ export const presentationEvaluationSchema = z.object({
   work_distribution: z.number().int().min(0).max(5),
   comments: z.string().trim().max(5000).optional().default(''),
 }).strict();
+
+export const roundEvaluationSchema = presentationEvaluationSchema;
 
 export function calculatePresentationEvaluation(scores) {
   const weightedScores = Object.fromEntries(RUBRIC.map(({ key }) => [key, scores[key]]));

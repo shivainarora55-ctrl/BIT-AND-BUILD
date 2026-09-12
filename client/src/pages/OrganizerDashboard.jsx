@@ -52,6 +52,7 @@ function OrganizerDashboard() {
   const [problemForm, setProblemForm] = useState({ id: '', title: '', description: '', isActive: true });
   const [judges, setJudges] = useState([]);
   const [judgeActivity, setJudgeActivity] = useState([]);
+  const [finalScores, setFinalScores] = useState([]);
   const [activityJudgeFilter, setActivityJudgeFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -100,6 +101,10 @@ const [judgePasswordCopied, setJudgePasswordCopied] = useState(false);
       const activityBody = await activityResponse.json();
       if (!activityResponse.ok) throw new Error(activityBody?.error?.message || 'Failed to load judge activity');
       setJudgeActivity(activityBody.activity || []);
+      const finalScoresResponse = await fetch(`${API_BASE}/api/admin/final-scores`, { credentials: 'include' });
+      const finalScoresBody = await finalScoresResponse.json();
+      if (!finalScoresResponse.ok) throw new Error(finalScoresBody?.error?.message || 'Failed to load final scores');
+      setFinalScores(finalScoresBody.teams || []);
     } catch (error) { showMessage(error.message, 'error'); }
     setLoading(false);
   }
@@ -472,6 +477,22 @@ async function handleCopyJudgePassword() {
               <h2 className="dash-title" style={{ marginTop: 'var(--space-6)' }}>Judge Scoring Activity</h2>
               <label className="dash-field" style={{ maxWidth: '18rem' }}><span>Filter by Judge</span><select value={activityJudgeFilter} onChange={(e) => setActivityJudgeFilter(e.target.value)}><option value="">All Judges</option>{judges.map((judge) => <option key={judge.id} value={judge.judgeId}>{judge.judgeId}</option>)}</select></label>
               <div className="dash-table-wrap glass-card"><table className="dash-table"><thead><tr><th>Judge ID</th><th>Team</th><th>Score</th><th>Scored at</th></tr></thead><tbody>{judgeActivity.filter((item) => !activityJudgeFilter || item.judgeId === activityJudgeFilter).map((item) => <tr key={`${item.judgeId}-${item.teamId}`}><td>{item.judgeId}</td><td>{item.teamName}</td><td>{item.score} / 100</td><td>{new Date(item.scoredAt).toLocaleString()}</td></tr>)}</tbody></table></div>
+            </div>
+          )}
+
+          {activeTab === 'final_scores' && (
+            <div className="dash-section">
+              <h2 className="dash-title">Round 1</h2>
+              <div className="dash-table-wrap glass-card"><table className="dash-table"><thead><tr><th>Team</th><th>Round 1 Final Score</th><th>Judge Feedback</th></tr></thead><tbody>{finalScores.map((score) => <tr key={score.teamId}><td><strong>{score.teamName}</strong></td><td>{score.round1Score === null ? 'Not evaluated' : `${score.round1Score.toFixed(1)} / 100`}</td><td>{score.round1Feedback || 'No feedback provided'}</td></tr>)}</tbody></table></div>
+
+              <h2 className="dash-title" style={{ marginTop: 'var(--space-6)' }}>Round 2</h2>
+              <div className="dash-table-wrap glass-card"><table className="dash-table"><thead><tr><th>Team</th><th>Round 2 Final Score</th><th>Judge Feedback</th></tr></thead><tbody>{finalScores.map((score) => <tr key={score.teamId}><td><strong>{score.teamName}</strong></td><td>{score.round2Score === null ? 'Not evaluated' : `${score.round2Score.toFixed(1)} / 100`}</td><td>{score.round2Feedback || 'No feedback provided'}</td></tr>)}</tbody></table></div>
+
+              <h2 className="dash-title" style={{ marginTop: 'var(--space-6)' }}>Round 3</h2>
+              <div className="dash-table-wrap glass-card"><table className="dash-table"><thead><tr><th>Team</th><th>Round 3 Final Score</th><th>Judge Feedback</th></tr></thead><tbody>{finalScores.map((score) => <tr key={score.teamId}><td><strong>{score.teamName}</strong></td><td>{score.round3Score === null ? 'Not evaluated' : `${score.round3Score.toFixed(1)} / 100`}</td><td>{score.round3Feedback || 'No feedback provided'}</td></tr>)}</tbody></table></div>
+
+              <h2 className="dash-title" style={{ marginTop: 'var(--space-6)' }}>Leaderboard</h2>
+              <div className="dash-table-wrap glass-card"><table className="dash-table"><thead><tr><th>Rank</th><th>Team</th><th>Round 1</th><th>Round 2</th><th>Round 3</th><th>Final Score</th></tr></thead><tbody>{finalScores.slice().sort((left, right) => (right.finalScore ?? -1) - (left.finalScore ?? -1) || left.teamName.localeCompare(right.teamName)).map((score, index) => <tr key={score.teamId}><td>{score.finalScore === null ? 'Incomplete' : index + 1}</td><td><strong>{score.teamName}</strong></td><td>{score.round1Score === null ? 'Not evaluated' : `${score.round1Score.toFixed(1)} / 100`}</td><td>{score.round2Score === null ? 'Not evaluated' : `${score.round2Score.toFixed(1)} / 100`}</td><td>{score.round3Score === null ? 'Not evaluated' : `${score.round3Score.toFixed(1)} / 100`}</td><td>{score.finalScore === null ? 'Incomplete evaluation' : `${score.finalScore.toFixed(1)} / 100`}</td></tr>)}</tbody></table></div>
             </div>
           )}
 

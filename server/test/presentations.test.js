@@ -9,6 +9,7 @@ import { createApp, isAllowedPresentationFile } from '../src/app.js';
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const appSource = await fs.readFile(path.resolve(directory, '../src/app.js'), 'utf8');
 const migration = await fs.readFile(path.resolve(directory, '../migrations/005_presentations.sql'), 'utf8');
+const durableStorageMigration = await fs.readFile(path.resolve(directory, '../migrations/011_presentation_file_data.sql'), 'utf8');
 
 describe('presentation uploads', () => {
   test('allows only PowerPoint files', () => {
@@ -23,6 +24,8 @@ describe('presentation uploads', () => {
     expect(migration).toMatch(/original_filename TEXT NOT NULL/);
     expect(migration).toMatch(/stored_filename TEXT NOT NULL UNIQUE/);
     expect(migration).toMatch(/mime_type TEXT NOT NULL/);
+    expect(durableStorageMigration).toMatch(/file_data BYTEA/);
+    expect(durableStorageMigration).toMatch(/file_checksum TEXT/);
   });
 
   test('uses authenticated participant, Admin, and Judge presentation routes', () => {
@@ -40,8 +43,7 @@ describe('presentation uploads', () => {
       query: vi.fn(async (sql) => {
         if (sql === 'BEGIN' || sql === 'COMMIT') return { rows: [] };
         if (sql.startsWith('SELECT status')) return { rows: [] };
-        if (sql.startsWith('SELECT stored_filename')) return { rows: [] };
-        if (sql.startsWith('INSERT INTO presentations')) return { rows: [{ original_filename: 'round-1.pptx', mime_type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', uploaded_at: '2026-01-01T00:00:00.000Z' }] };
+        if (sql.startsWith('INSERT INTO presentations')) return { rows: [{ id: 'presentation-id', team_id: teamId, original_filename: 'round-1.pptx', mime_type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', uploaded_at: '2026-01-01T00:00:00.000Z' }] };
         return { rows: [] };
       }),
       release: vi.fn(),
@@ -56,9 +58,35 @@ describe('presentation uploads', () => {
       expect(response.status).toBe(201);
       expect(response.body).toEqual({ presentation: { originalFilename: 'round-1.pptx', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', uploadedAt: '2026-01-01T00:00:00.000Z' } });
       expect(client.query.mock.calls.some(([sql]) => sql.startsWith('INSERT INTO presentations'))).toBe(true);
-      expect((await fs.readdir(uploadDir))).toHaveLength(1);
+      const insert = client.query.mock.calls.find(([sql]) => sql.startsWith('INSERT INTO presentations'));
+      expect(insert[1][4]).toEqual(Buffer.from('pptx fixture'));
+      expect(insert[1][5]).toBe(Buffer.byteLength('pptx fixture'));
+      expect((await fs.readdir(uploadDir))).toHaveLength(0);
     } finally {
       await fs.rm(uploadDir, { recursive: true, force: true });
     }
+  });
+
+  test('lets an authenticated judge download the exact persisted PPT bytes', async () => {
+    const teamId = '11111111-1111-4111-8111-111111111111';
+    const ppt = Buffer.from('persisted-pptx');
+    const pool = { connect: vi.fn(), query: vi.fn(async (sql) => {
+      if (sql.includes('FROM sessions')) return { rows: [{ id: 'judge-id', email: 'judge@example.com', display_name: 'Judge', role: 'judge', expires_at: new Date(Date.now() + 60000) }] };
+      if (sql.startsWith('SELECT id,team_id,original_filename')) return { rows: [{ id: 'presentation-id', team_id: teamId, original_filename: 'round-1.pptx', stored_filename: 'legacy.pptx', mime_type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', file_data: ppt }] };
+      return { rows: [] };
+    }) };
+    const app = createApp({ pool, config: { nodeEnv: 'test', frontendOrigin: 'http://localhost:5173', sessionCookieName: 'bb_session', sessionTtlHours: 8, uploadDir: '/unused' }, logger: { error: vi.fn(), info: vi.fn() } });
+    const response = await request(app).get(`/api/judge/teams/${teamId}/presentation`).set('Cookie', 'bb_session=valid').buffer(true).parse((stream, callback) => { const chunks = []; stream.on('data', (chunk) => chunks.push(chunk)); stream.on('end', () => callback(null, Buffer.concat(chunks))); });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(ppt);
+  });
+
+  test('returns a clear safe error when a legacy file is missing', async () => {
+    const teamId = '11111111-1111-4111-8111-111111111111';
+    const pool = { connect: vi.fn(), query: vi.fn(async (sql) => sql.includes('FROM sessions') ? { rows: [{ id: 'judge-id', email: 'judge@example.com', display_name: 'Judge', role: 'judge', expires_at: new Date(Date.now() + 60000) }] } : { rows: [{ id: 'presentation-id', team_id: teamId, original_filename: 'missing.pptx', stored_filename: 'missing.pptx', mime_type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', file_data: null }] }) };
+    const app = createApp({ pool, config: { nodeEnv: 'test', frontendOrigin: 'http://localhost:5173', sessionCookieName: 'bb_session', sessionTtlHours: 8, uploadDir: '/unused' }, logger: { error: vi.fn(), info: vi.fn() } });
+    const response = await request(app).get(`/api/judge/teams/${teamId}/presentation`).set('Cookie', 'bb_session=valid');
+    expect(response.status).toBe(404);
+    expect(response.body.error.code).toBe('PRESENTATION_FILE_UNAVAILABLE');
   });
 });
