@@ -24,8 +24,11 @@ describe('presentation uploads', () => {
     expect(migration).toMatch(/original_filename TEXT NOT NULL/);
     expect(migration).toMatch(/stored_filename TEXT NOT NULL UNIQUE/);
     expect(migration).toMatch(/mime_type TEXT NOT NULL/);
-    expect(durableStorageMigration).toMatch(/file_data BYTEA/);
-    expect(durableStorageMigration).toMatch(/file_checksum TEXT/);
+    expect(durableStorageMigration).toMatch(/ADD COLUMN IF NOT EXISTS file_data BYTEA/);
+    expect(durableStorageMigration).toMatch(/ADD COLUMN IF NOT EXISTS file_size INTEGER/);
+    expect(durableStorageMigration).toMatch(/ADD COLUMN IF NOT EXISTS file_checksum TEXT/);
+    expect(durableStorageMigration).toMatch(/presentations_file_size_check/);
+    expect(durableStorageMigration).toMatch(/presentations_file_checksum_check/);
   });
 
   test('uses authenticated participant, Admin, and Judge presentation routes', () => {
