@@ -199,35 +199,6 @@ function ParticipantDashboard() {
                 </div>
               </div>
 
-              <div className="dash-problem-statements">
-                <div>
-                  <h2 className="dash-title">Choose Your Problem Statement</h2>
-                  <p className="dash-field-hint">Select one challenge to work on during the hackathon.</p>
-                </div>
-                <div className="dash-problem-grid">
-                  {problemStatements.map((statement, index) => (
-                    <article
-                      className={`dash-problem-card glass-card ${selectedProblemStatement === statement.id ? 'dash-problem-card--selected' : ''}`}
-                      key={statement.id}
-                    >
-                      <span className="dash-problem-label">Problem Statement {index + 1}</span>
-                      <h3>{statement.title}</h3>
-                      <p>{statement.description}</p>
-                      <button
-                        type="button"
-                        className="btn btn--secondary"
-                        onClick={() => {
-                          setSelectedProblemStatement(statement.id);
-                          showMessage(`Problem Statement ${index + 1} selected`);
-                        }}
-                      >
-                        {selectedProblemStatement === statement.id ? 'Selected' : 'Select'}
-                      </button>
-                    </article>
-                  ))}
-                </div>
-              </div>
-
               {false && (
                 <div className="dash-notice glass-card">
                   <h3>⚠️ Database Not Connected</h3>
