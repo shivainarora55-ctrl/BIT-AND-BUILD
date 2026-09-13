@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import DashboardShell from '../layouts/DashboardShell.jsx';
+import { createRoundTwoSubmissionPayload } from '../lib/roundTwoSubmission.js';
 import './ParticipantDashboard.css';
 
 function ParticipantDashboard() {
@@ -26,8 +27,6 @@ function ParticipantDashboard() {
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ text: '', type: '' });
-  const [selectedProblemStatement, setSelectedProblemStatement] = useState(null);
-  const [problemStatements, setProblemStatements] = useState([]);
   const [presentationFile, setPresentationFile] = useState(null);
   const [uploadingPresentation, setUploadingPresentation] = useState(false);
 
@@ -60,23 +59,13 @@ function ParticipantDashboard() {
       const announcementsBody = await announcementsResponse.json().catch(() => ({}));
       if (announcementsResponse.ok) setAnnouncements(announcementsBody.announcements || []);
 
-      const [problemsResponse, submissionsResponse] = await Promise.all([
-        fetch(`${API_BASE}/api/problem-statements`, { credentials: 'include' }),
-        fetch(`${API_BASE}/api/submissions/me`, { credentials: 'include' }),
-      ]);
-      const problemsBody = await problemsResponse.json().catch(() => ({}));
+      const submissionsResponse = await fetch(`${API_BASE}/api/submissions/me`, { credentials: 'include' });
       const submissionsBody = await submissionsResponse.json().catch(() => ({}));
-      
-      if (problemsResponse.ok) {
-        setProblemStatements(problemsBody.problemStatements || []);
-        setSelectedProblemStatement((current) => current || problemsBody.problemStatements?.[0]?.id || null);
-      }
-      
+
       const savedSubmission = submissionsBody.submissions?.[0];
       if (submissionsResponse.ok && savedSubmission) {
         setProjectTitle(savedSubmission.title || ''); setProjectDesc(savedSubmission.description || '');
         setGithubLink(savedSubmission.repository_url || ''); setDemoLink(savedSubmission.deployed_url || '');
-        setSelectedProblemStatement(savedSubmission.problem_statement_id);
       }
     } catch (error) { console.error('Failed to load secondary data', error); }
     
@@ -127,7 +116,7 @@ function ParticipantDashboard() {
     if (!team) return;
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE}/api/submissions`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ problemStatementId: selectedProblemStatement, projectTitle, description: projectDesc, techStack, repositoryUrl: githubLink, deployedUrl: demoLink, status: 'submitted' }) });
+      const response = await fetch(`${API_BASE}/api/submissions`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createRoundTwoSubmissionPayload({ projectTitle, description: projectDesc, techStack, repositoryUrl: githubLink, deployedUrl: demoLink, status: 'submitted' })) });
       const body = await response.json(); if (!response.ok) throw new Error(body?.error?.message || 'Submission failed');
       await loadData();
       showMessage('Round 2 submitted successfully! 🎉');
@@ -142,7 +131,7 @@ function ParticipantDashboard() {
     if (!team) return;
     setSaving(true);
     try {
-      const response = await fetch(`${API_BASE}/api/submissions`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ problemStatementId: selectedProblemStatement, projectTitle, description: projectDesc, techStack, repositoryUrl: githubLink, deployedUrl: demoLink, status: 'draft' }) });
+      const response = await fetch(`${API_BASE}/api/submissions`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(createRoundTwoSubmissionPayload({ projectTitle, description: projectDesc, techStack, repositoryUrl: githubLink, deployedUrl: demoLink, status: 'draft' })) });
       const body = await response.json(); if (!response.ok) throw new Error(body?.error?.message || 'Save failed');
       showMessage('Draft saved!');
     } catch (err) {
